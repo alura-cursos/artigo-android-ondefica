@@ -1,33 +1,32 @@
 package br.com.alura.ondefica.repository
 
-import android.util.Log
-import androidx.lifecycle.LiveData
-import androidx.lifecycle.MutableLiveData
-import br.com.alura.ondefica.model.Endereco
+import androidx.lifecycle.liveData
 import br.com.alura.ondefica.webclient.service.EnderecoService
-import retrofit2.Call
-import retrofit2.Callback
-import retrofit2.Response
+import java.net.ConnectException
+
+sealed class Resultado<out R> {
+    data class Sucesso<out T>(val dado: T?) : Resultado<T?>()
+    data class Erro(val exception: Exception) : Resultado<Nothing>()
+}
 
 class EnderecoRepository(
     private val service: EnderecoService
 ) {
 
-    fun buscaEndereco(cep: String): LiveData<Endereco?> {
-        val liveData = MutableLiveData<Endereco?>()
-        service.buscaEndereco(cep).enqueue(object : Callback<Endereco?> {
-
-            override fun onResponse(call: Call<Endereco?>, response: Response<Endereco?>) {
-                liveData.postValue(response.body())
+    fun buscaEndereco(cep: String) = liveData {
+        try {
+            val resposta = service.buscaEndereco(cep)
+            if(resposta.isSuccessful){
+                emit(Resultado.Sucesso(dado = resposta.body()))
+            } else {
+                emit(Resultado.Erro(exception = Exception("Falha ao buscar o endereco")))
             }
-
-            override fun onFailure(call: Call<Endereco?>, t: Throwable) {
-                Log.e("EnderecoRepository", "onFailure: falha ao buscar o endereço", t)
-                liveData.postValue(null)
-            }
-
-        })
-        return liveData
+        } catch (e: ConnectException) {
+            emit(Resultado.Erro(exception = Exception("Falha na comunicação com API")))
+        }
+        catch (e: Exception) {
+            emit(Resultado.Erro(exception = e))
+        }
     }
 
 }

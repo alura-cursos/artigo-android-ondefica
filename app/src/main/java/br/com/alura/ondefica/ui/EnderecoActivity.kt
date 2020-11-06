@@ -5,7 +5,10 @@ import android.view.View.GONE
 import android.view.View.VISIBLE
 import androidx.appcompat.app.AppCompatActivity
 import br.com.alura.ondefica.databinding.ActivityEnderecoBinding
+import br.com.alura.ondefica.model.Endereco
+import br.com.alura.ondefica.repository.Resultado
 import br.com.alura.ondefica.ui.viewmodel.EnderecoViewModel
+import com.google.android.material.snackbar.Snackbar
 import org.koin.android.viewmodel.ext.android.viewModel
 
 class EnderecoActivity : AppCompatActivity() {
@@ -32,13 +35,25 @@ class EnderecoActivity : AppCompatActivity() {
         binding.progresso.show()
         viewModel.buscaEnderecoPelo(cep).observe(this) {
             binding.progresso.hide()
-            val enderecoVisivel = it?.let { endereco ->
-                binding.logradouro.text = endereco.logradouro
-                binding.bairro.text = endereco.bairro
-                binding.cidade.text = endereco.localidade
-                binding.estado.text = endereco.uf
-                true
+            val enderecoVisivel = it?.let { resultado ->
+                when (resultado) {
+                    is Resultado.Sucesso -> {
+                        resultado.dado?.let { endereco ->
+                            preencheEndereco(endereco)
+                            true
+                        } ?: false
+                    }
+                    is Resultado.Erro -> {
+                        Snackbar.make(
+                            binding.coordinatorLayout,
+                            resultado.exception.message.toString(),
+                            Snackbar.LENGTH_SHORT
+                        ).show()
+                        false
+                    }
+                }
             } ?: false
+
             binding.constraintLayoutInfoEndereco.visibility =
                 if (enderecoVisivel) {
                     VISIBLE
@@ -46,5 +61,12 @@ class EnderecoActivity : AppCompatActivity() {
                     GONE
                 }
         }
+    }
+
+    private fun preencheEndereco(endereco: Endereco) {
+        binding.logradouro.text = endereco.logradouro
+        binding.bairro.text = endereco.bairro
+        binding.cidade.text = endereco.localidade
+        binding.estado.text = endereco.uf
     }
 }
